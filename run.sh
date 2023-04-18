@@ -4,10 +4,8 @@ BASEDIR=../DDI
 
 # convert datasets to feature vectors
 echo "Extracting features..."
-#python3 extract-features.py $BASEDIR/data/train/ > train.feat
-#python3 extract-features.py $BASEDIR/data/devel/ > devel.feat
-python3 extract-featuresCopyOriginal.py $BASEDIR/data/train/ > train.feat
-python3 extract-featuresCopyOriginal.py $BASEDIR/data/devel/ > devel.feat
+python3 extract-features.py $BASEDIR/data/train/ > train.feat
+python3 extract-features.py $BASEDIR/data/devel/ > devel.feat
 
 # train CRF model
 echo "Training CRF model..."

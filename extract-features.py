@@ -46,37 +46,22 @@ def get_tag(token, spans):
 ## -- Extract features for each token in given sentence
 
 def extract_features(tokens):
-    # example: tokens = [('La', 0, 1), ('meva', 3, 6), ('mare', 8, 11), ('es', 13, 14), ('la', 16, 17), ('millor', 19, 24), ('pero', 26, 29), ('vull', 31, 34), ('un', 36, 37), ('entrepa', 39, 45), ('de', 47, 48), ('Hydrogen', 50, 57)]
-    # for each token, generate list of features and add it to the result
-    drugSuffixes = ["-ine", "-ol", "-azole", "-vir", "-mab", "-tidine", "-pril", "-sartan", "-statin", "-barbital",
-                    "-itide", "-afloxacin", "-zepam", "-oxetine", "-prazole", "-tidone", "-ridone", "-gliflozin",
-                    "-tinib",
-                    "-vastatin"]
-    drugPrefixes = ["iso-", "cis-", "trans-", "para-", "meta-", "anti-", "pro-", "pre-", "post-", "co-",
-                    "en-", "de-", "re-", "un-", "dis-", "over-", "under-", "sub-", "super-", "inter-"]
-    brandSuffixes = ["-max", "-dex", "-pro", "-gen", "-con", "-x", "-in", "-vir", "-lia", "-zo", "-on", "-ron", "-an",
-                     "-ix", "-ol", "-tan", "-vel", "-cal", "-viran", "-to"]
-    brandPrefixes = ["neo-", "nova-", "pro-", "lux-", "med-", "ortho-", "omni-", "reli-", "sym-", "ultra-", "vit-",
-                     "xeno-", "zeno-", "endo-", "novo-", "bio-", "glo-", "inno-", "sola-", "terra-"]
-    groupSuffixes = ["-oids", "-amines", "-azepines", "-drals", "-oxanes", "-prils", "-olols", "-dipines", "-astatins",
-                     "-statins", "-barbitals"]
-    groupPrefixes = ["anti-", "pro-", "re-", "co-", "pre-", "post-", "in-", "im-", "sub-", "super-", "trans-", "ex-",
-                     "multi-",
-                     "pseudo-", "de-", "inter-", "intra-", "non-", "para-", "peri-"]
-    drug_nSuffixes = ["-ides", "-anes", "-actams", "-ximabs", "-ruxicobs", "-ciclibs", "-lizumabs", "-biximabs",
-                      "-zumabs", "-olimabs", "-umimabs", "-radinibs", "-asibs", "-axons", "-golixes", "-zixes",
-                      "-ocogibs", "-adibats",
-                      "-tabines", "-cirans"]
-    drug_nPrefixes = ["neo-", "pre-", "post-", "in-", "im-", "sub-", "super-", "trans-", "ex-", "multi-", "pseudo-",
-                      "de-", "inter-", "intra-", "non-", "para-", "peri-", "co-", "pro-", "re-"]
-
-    drug_pattern = re.compile(
-        r'\b(?:\w+[,-])*([A-Z][a-z]{2,}(?:\s[A-Z][a-z]+)*(?:\s\w+)?)(?:,[A-Z][a-z]{2,}(?:\s[A-Z][a-z]+)*(?:\s\w+)*)*\b')
-
     drug_names = set()
     brand_names = set()
     group_names = set()
 
+    with open('../DDI/resources/HSDB.txt', 'r') as f:
+        for line in f:
+            drug_names.add(line.strip().lower())
+
+    with open('../DDI/resources/DrugBank.txt', 'r') as f:
+        for line in f:
+            if line.split("|")[-1] == "drug":
+                drug_names.add(line.strip().lower())
+            elif line.split("|")[-1] == "brand":
+                brand_names.add(line.strip().lower())
+            elif line.split("|")[-1] == "group":
+                group_names.add(line.strip().lower())
     with open('../DDI/resources/HSDB.txt', 'r') as f:
         for line in f:
             drug_names.add(line.strip().lower())
@@ -90,78 +75,63 @@ def extract_features(tokens):
     with open('./group.txt', 'r') as f:
         for line in f:
             group_names.add(line.strip().lower())
-
+    drug_pattern = re.compile(
+        r'\b(?:\w+[,-])*([A-Z][a-z]{2,}(?:\s[A-Z][a-z]+)*(?:\s\w+)?)(?:,[A-Z][a-z]{2,}(?:\s[A-Z][a-z]+)*(?:\s\w+)*)*\b')
     result = []
     for k in range(0, len(tokens)):  # len(tokens) is the number of words
         tokenFeatures = []
         t = tokens[k][0]
-
-        tokenFeatures.append("form=" + t)  # Useful
-        tokenFeatures.append("suf3=" + t[-3:])  # Useful
-        tokenFeatures.append("suf2=" + t[-2:])  # Useful
-        tokenFeatures.append("suf1=" + t[-1:])  # useful
-        # tokenFeatures.append("prefix1=" + t[:1]) #unuseful, worsens
-        tokenFeatures.append("prefix2=" + t[:2])  # Useful
-        tokenFeatures.append("prefix3=" + t[:3])  # Useful
-        # tokenFeatures.append("prefix4=" + t[:4]) #Unuseful, does not affect
-
-        tokenFeatures.append("pos=" + nltk.pos_tag([t])[0][1])  # part of speech of the word USEFUL
-        # tokenFeatures.append("capitalized=" + str(t.isupper())) #Unuseful, it worsens by 0.3%
-        tokenFeatures.append("length=" + str(len(t)))  # Useful, it helps around 1%
-        # tokenFeatures.append("numeric=" + str(t.isnumeric())) # Unuseful, any difference
-        # tokenFeatures.append("lowercase=" + str(t.isalpha() and t.islower())) # Unuseful, any difference
-        tokenFeatures.append("uppercase=" + str(t.isalpha() and t.isupper()))  # USEFUL
-        tokenFeatures.append("startwithdash=" + str(t[0] == '-'))  # Useful, but just a bit from 76,3 to 76,1
-        # tokenFeatures.append("startwithpunctuation=" + str(t[0] in string.punctuation)) # Unuseful, not many difference
-        tokenFeatures.append("nucleotidesequence=" + str(t in ['a', 'c', 'g', 't']))  # USEFUL
-        # tokenFeatures.append("quote=" + str(t in ['“', '”', "'", '"']))  Unuseful, not many difference
-
-        tokenFeatures.append("isDrugName=" + str(int(t.lower() in drug_names)))  # Useful
-        tokenFeatures.append("isBrandName=" + str(int(t.lower() in brand_names)))  # Useful
-        tokenFeatures.append("isGroupName=" + str(int(t.lower() in group_names)))  # Useful
-
+        tokenFeatures.append("form=" + t)
+        tokenFeatures.append("suf3=" + t[-3:])
+        tokenFeatures.append("suf2=" + t[-2:])
+        tokenFeatures.append("suf1=" + t[-1:])
+        tokenFeatures.append("prefix2=" + t[:2])
+        tokenFeatures.append("prefix3=" + t[:3])
+        tokenFeatures.append("length=" + str(len(t)))
+        tokenFeatures.append("uppercase=" + str(t.isalpha() and t.isupper()))
+        tokenFeatures.append("startwithdash=" + str(t[0] == '-'))
+        tokenFeatures.append("nucleotidesequence=" + str(t in ['a', 'c', 'g', 't']))
+        tokenFeatures.append("pos=" + nltk.pos_tag([t])[0][1])
+        tokenFeatures.append("isDrugName=" + str(int(t.lower() in drug_names)))
+        tokenFeatures.append("isBrandName=" + str(int(t.lower() in brand_names)))
+        tokenFeatures.append("isGroupName=" + str(int(t.lower() in group_names)))
         drug_match = drug_pattern.match(t)
-        tokenFeatures.append("drugPattern=" + str(int(bool(drug_match))))  # Useful
+        tokenFeatures.append("drugPattern=" + str(int(bool(drug_match))))
 
-        # tokenFeatures.append("drug_suffix=" + str(any(t.endswith(suffix) for suffix in drugSuffixes)))
-        # tokenFeatures.append("drug_prefix=" + str(any(t.startswith(prefix) for prefix in drugPrefixes)))
-        # tokenFeatures.append("brand_suffix=" + str(any(t.endswith(suffix) for suffix in brandSuffixes)))
-        # tokenFeatures.append("brand_prefix=" + str(any(t.startswith(prefix) for prefix in brandPrefixes)))
-        # tokenFeatures.append("group_suffix=" + str(any(t.endswith(suffix) for suffix in groupSuffixes)))
-        # tokenFeatures.append("group_prefix=" + str(any(t.startswith(prefix) for prefix in groupPrefixes)))
-        # tokenFeatures.append("drug_n_suffix=" + str(any(t.endswith(suffix) for suffix in drug_nSuffixes)))
-        # tokenFeatures.append("drug_n_prefix=" + str(any(t.startswith(prefix) for prefix in drug_nPrefixes)))
-
+        # tokenFeatures.append("prefix1=" + t[:1])
+        # tokenFeatures.append("prefix4=" + t[:4])
+        # tokenFeatures.append("capitalized=" + str(t.isupper()))
+        # tokenFeatures.append("numeric=" + str(t.isnumeric()))
+        # tokenFeatures.append("lowercase=" + str(t.isalpha() and t.islower()))
+        # tokenFeatures.append("startwithpunctuation=" + str(t[0] in string.punctuation))
+        # tokenFeatures.append("quote=" + str(t in ['“', '”', "'", '"']))
         if k > 0:
             tPrev = tokens[k - 1][0]
-            # tokenFeatures.append("formPrev=" + tPrev) #Unuseful
-            tokenFeatures.append("suf3Prev=" + tPrev[-3:])  # USEUFUL, VERY USEFUL
-            # tokenFeatures.append("suf2Prev=" + tPrev[-2:]) #Unuseful
-            tokenFeatures.append("suf1Prev=" + tPrev[-1:])  # Useful
-            tokenFeatures.append("prevBigram=" + tPrev + "_" + t)  # Useful, very useful
-            tokenFeatures.append("posPrev=" + nltk.pos_tag([tPrev])[0][1])  # Useful
-            # tokenFeatures.append("pref3Prev=" + tPrev[:3]) #Unuseful
-            # tokenFeatures.append("pref2Prev=" + tPrev[:2]) #Unuseful
-            # tokenFeatures.append("pref2Prev=" + tPrev[:1]) #Unuseful
+            tokenFeatures.append("suf3Prev=" + tPrev[-3:])
+            tokenFeatures.append("suf1Prev=" + tPrev[-1:])
+            tokenFeatures.append("prevBigram=" + tPrev + "_" + t)
+            tokenFeatures.append("posPrev=" + nltk.pos_tag([tPrev])[0][1])
+            # tokenFeatures.append("formPrev=" + tPrev)
+            # tokenFeatures.append("suf2Prev=" + tPrev[-2:])
+            # tokenFeatures.append("pref3Prev=" + tPrev[:3])
+            # tokenFeatures.append("pref2Prev=" + tPrev[:2])
+            # tokenFeatures.append("pref2Prev=" + tPrev[:1])
             # tokenFeatures.append("lengthPrev=" + str(len(tPrev)))
-
         else:
             tokenFeatures.append("BoS")
-
         if k < len(tokens) - 1:
             tNext = tokens[k + 1][0]
-            tokenFeatures.append("formNext=" + tNext)  # Useful
-            tokenFeatures.append("suf3Next=" + tNext[-3:])  # Useful
-            tokenFeatures.append("suf2Next=" + tNext[-2:])  # Useful
-            # tokenFeatures.append("suf1Next=" + tNext[-1:]) #Unuseful, dos enot affect
-            tokenFeatures.append("nextBigram=" + t + "_" + tNext)  # next word bigram #USeful, very useful
-            # tokenFeatures.append("posNext=" + nltk.pos_tag([tNext])[0][1]) #Unuseful, it imporves 0.1 if we dont use it
-            # tokenFeatures.append("pref1Next=" + tNext[:1])  #Unuseful
-            # tokenFeatures.append("pref2Next=" + tNext[:2]) #Unuseful, no aporta
-            # tokenFeatures.append("pref3Next=" + tNext[:3]) #Unuseful
-
+            tokenFeatures.append("formNext=" + tNext)
+            tokenFeatures.append("suf3Next=" + tNext[-3:])
+            tokenFeatures.append("suf2Next=" + tNext[-2:])
+            tokenFeatures.append("nextBigram=" + t + "_" + tNext)
+            # tokenFeatures.append("suf1Next=" + tNext[-1:])
+            # tokenFeatures.append("posNext=" + nltk.pos_tag([tNext])[0][1])
+            # tokenFeatures.append("pref1Next=" + tNext[:1])
+            # tokenFeatures.append("pref2Next=" + tNext[:2])
+            # tokenFeatures.append("pref3Next=" + tNext[:3])
+            # tokenFeatures.append("lengthNext=" + str(len(tNext)))
         result.append(tokenFeatures)
-
     return result
 
 
@@ -210,3 +180,8 @@ for f in listdir(datadir):
 
         # blank line to separate sentences
         print()
+
+
+
+
+
